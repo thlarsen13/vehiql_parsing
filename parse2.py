@@ -10,13 +10,6 @@ We allow n-ary operators, (AND, OR) and atomic statements.
 
 """
 
-# class Node:
-
-#   def __init__(self):
-#       self.node_type = "" 
-#       self.children = []
-#       self.data = ""
-
 class ChristmasTree:
     def __init__(self, root): 
         self.key = root
@@ -30,8 +23,6 @@ class ChristmasTree:
             t = newNode
         else:
             t = ChristmasTree(newNode)
-        # if self.leftChild is not None:
-        #     t.leftChild = self.leftChild
 
         return t
 
@@ -42,126 +33,112 @@ class ChristmasTree:
             child.print_tree(depth=depth+1)
 
 
-binary_operators = ["AND", "OR", "LEFT", "RIGHT"]
-
-def buildParseTree(word_list):
-    # word_list = query.split() #create list of words 
-    pStack = Stack()
-    eTree = ChristmasTree('')
-    pStack.push(eTree)
-    currentTree = eTree
-
-    for word in word_list: 
-        if word == '(':
-            new_child = currentTree.insertChild('')
-            pStack.push(currentTree)
-            currentTree = new_child
-
-        elif word in binary_operators:
-            currentTree.key = word
-            new_child = currentTree.insertChild('')
-            pStack.push(currentTree)
-            currentTree = new_child
-
-        elif word == ')':
-            currentTree = pStack.pop()
-
-        else:
-            currentTree.key = word
-            parent = pStack.pop()
-            currentTree = parent
-
-    return eTree
+binary_operators = ["AND", "OR"]
 
 
-def find_char(query, word): 
-    i = 0
-    for q in query: 
-        if q == word: 
-            return i
-        i += 1
-    return -1
-
-def find_char_from_back(query, word): 
-    i = len(query) - 1
-    while i >= 0: 
-        if query[i] == word: 
-            return i
-        i -= 1
-    return -1
-
-#input is a LIST of words. inserts parenthesis to make it obvious how to construct the tree 
-def resolve_syntax(query, current_op=None): 
-    #SOLVE with recursion. 
-    # order_of_tightness = ["(", "AND", "OR"] #operations on the left bind the tightest???
-    print(query)
-    i = find_char(query, "(")
-    if i != -1: 
-        j = find_char_from_back(query, ")")
-        if j == -1 or j < i:
-            print("AHHHHHH")
+def find_close(query, i): 
+    j = i + 1 
+    count = 1 
+    while count > 0: 
+        if j > len(query): 
+            print("oops, no ) found for ( at position i = " + str(i) + " in:")
+            print(query)
             exit() 
-        before = resolve_syntax(query[:i])
-        inside = resolve_syntax(query[i+1:j])
-        after = resolve_syntax(query[j+1:])
-        return before + ["("] + inside + [")"] + after
-
-    for op in ["OR", "AND"]: 
-
-        i = find_char(query, op)
-        if i != -1: 
-            before = resolve_syntax(query[:i], current_op=op)
-            after = resolve_syntax(query[i+1:], current_op=op)
-            if current_op == op: 
-                return  before + [op] + after
-            else:
-                return ["("] + before + [op] + after + [")"]
-    return query
+        if query[j] == '(': 
+            count += 1 
+        elif query[j] == ')': 
+            count -= 1 
+        j += 1 
+    return j - 1
 
 
-def RPN_tree(query): 
-    # pStack = Stack()
-    # eTree = ChristmasTree('')
-    # pStack.push(eTree)
-    # currentTree = eTree
-    priority = {
-    "AND" : 0
-    "OR" : 1
-    }
-    operStack = Stack()
+class treeMaker(): 
+    def __init__(self, query ): 
+        # pStack = Stack()
+        # eTree = ChristmasTree('')
+        # pStack.push(eTree)
+        # currentTree = eTree
+        self.priority = {
+        "AND" : 1,
+        "OR" : 0
+        }
+        self.operStack = Stack()
+        self.treeStack = Stack()
+        self.query = query
 
-    for word in query: 
-        if word == '(':
-            new_child = currentTree.insertChild('')
-            pStack.push(currentTree)
-            currentTree = new_child
-
-        elif word in binary_operators: # push onto operator stack 
-            op = operStack.top() 
-            while op != '(' and priority[op] >  priority[word]: 
-                operStack.pop() 
-                currentTree.insertChild(queue)
-            operStack.push(word)
+    def makeTree(self):
+        i = 0
+        while i < len(self.query):
+            word = self.query[i] 
+            print(word)
             
+            if word in binary_operators: 
+                if (self.operStack.size() > 0) and self.priority[self.operStack.peek()] > self.priority[word]: 
+                #we have a tighter op, so we put all of those into a tree 
+                    self.pop_op() 
 
-        elif word == ')':
-            currentTree = pStack.pop()
+                self.operStack.push(word)
 
-        else:
-            currentTree.key = word
-            parent = pStack.pop()
-            currentTree = parent
+            elif word == "(": #recurse into the parenthesis, add a tree 
+                j = find_close(self.query, i)
+                if j < i: 
+                    print(self.query)
+                    print(i, j)
+                    print("unmatched (, AHHHH")
+                    exit() 
+                tM = treeMaker(self.query[i + 1 : j]) 
+                newTree = tM.makeTree()
+                # recurse into parenthesis, make tree, add it to the stack
+                self.treeStack.push(newTree)
+                i = j 
 
-    return eTree
+            else: #insert a new word 
+                self.treeStack.push(ChristmasTree(word))
+            i += 1
+
+        while self.operStack.size() > 0: 
+            self.pop_op() 
+        ### check operStack is empty, and treeStack has only one tree 
+        t = self.treeStack.pop() 
+        assert self.treeStack.size() == 0
+        return t 
+
+    def pop_op(self): 
+        op = self.operStack.pop()
+
+        newTree = ChristmasTree(op)
+
+        c1 = self.treeStack.pop() 
+        newTree.children.append(c1)
+        # print("\n---c1---")
+        # c1.print_tree()
+
+        while (self.operStack.size() > 0) and self.operStack.peek() == op: 
+          self.operStack.pop()
+          ci = self.treeStack.pop()
+          newTree.children.append(ci)
+          # print("\n---ci---")
+          # ci.print_tree()
+
+        c2 = self.treeStack.pop() 
+        newTree.children.append(c2)
+        # print("---c2---")
+        # c2.print_tree()
+
+        self.treeStack.push(newTree)
+
 
 def sentenceToTree(query): 
     query = query.split() 
     # query = resolve_syntax(query)
-    print(query)
-    pt = buildParseTree(query)
+    # print(query)
+    # pt = buildParseTree(query)
+    tM = treeMaker(query)
+    pt = tM.makeTree()
+    print("\n FINAL TREE \n")
     pt.print_tree() 
-q = '( ( ( argument1 RIGHT argument2 ) AND ( ego.something=left_turn OR traffic_light.CONFIDENCE=0.9 ) AND arg1 ) OR t.COLOR=red )'
-# q = "( 1 AND ( ( 2 AND 2.5 ) OR 3 ) ) AND 4"
-# q = '( argument1 RIGHT argument2 ) AND ( ego.something=left_turn OR traffic_light.CONFIDENCE=0.9 ) AND arg1 ) OR t.COLOR=red )'
+# q = '( ( ( RIGHTargument1,argument2 ) AND ( ego.something=left_turn OR traffic_light.CONFIDENCE=0.9 ) AND arg1 ) OR t.COLOR=red )'
+# q = "1 AND 2 AND 2.5 OR 3 AND 4"
+q = '( ego.something=left_turn OR traffic_light.CONFIDENCE=0.9 ) AND ( arg1 OR t.COLOR=red ) OR 1 OR 3'
 
 sentenceToTree(q)
